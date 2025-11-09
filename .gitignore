@@ -419,3 +419,6 @@ FodyWeavers.xsd
 
 # Secrets
 secrets.txt
+
+# Documents
+*.pdf
