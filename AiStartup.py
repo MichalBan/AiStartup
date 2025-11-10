@@ -1,3 +1,4 @@
+import random
 import string
 import requests
 from bs4 import BeautifulSoup
@@ -40,27 +41,58 @@ def get_links_AI(text):
 
 def load_document():
     global file
-    print("loading document")
+
     doc_name = ""
     for f in os.listdir():
         if f.endswith('.pdf'):
             doc_name = f
     if doc_name == "":
-        print("failed to load document")
+        print("document file doesn't exist")
         return
 
+    files = client.files.list()
+    for f in files:
+        if f.filename == doc_name:
+            file = f
+            print("document already loaded")
+            return
+
+    print("loading document")
     file = client.files.create(
         file=open(doc_name, "rb"),
         purpose="user_data"
     )
     print("document done")
 
+def condition(tag):
+    if not tag.has_attr("class"):
+        return False
+    for class_name in tag.get("class"):
+        if class_name.startswith("ql-header-") or re.search("[pP]aragraph", class_name):
+            return True
+    return False
+
+def get_description(html_text):
+    print(f'extracting description')
+    soup = BeautifulSoup(html_text, "html.parser")
+    bullet_lists = soup.findAll(condition)
+
+    text = ""
+    for bullet in bullet_lists:
+        text = text + bullet.get_text() + "\n"
+    print(f'extraction done, num letters: {len(text)}')
+    return text
+
+
 if __name__ == "__main__":
     target_url = 'https://justjoin.it'
     text = scraper(target_url)
     links = get_links_manually(text)
+    link_text = scraper(target_url + random.choice(links))
+    description = get_description(link_text)
 
     load_document()
+    prompt =f"Using provided cv give me a quick answer if this candidate is suitable for the following job offer:\n\n{description}" 
     response = client.responses.create(
         model="gpt-5-nano",
         input=[
@@ -73,7 +105,7 @@ if __name__ == "__main__":
                     },
                     {
                         "type": "input_text",
-                        "text": f"Using provided cv give me a quick answer if this candidate id suitable for role of junior java developer",
+                        "text": prompt,
                     },
                 ]
             }
