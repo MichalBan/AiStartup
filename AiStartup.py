@@ -7,6 +7,8 @@ import re
 from openai import OpenAI
 import os
 from markdown_pdf import MarkdownPdf, Section
+import base64
+import pdfkit
 
 client = OpenAI()
 
@@ -19,6 +21,7 @@ def scraper(url):
     else:
         print("scrapping done")
         return response.text
+
 
 def get_links_manually(text: string):
     print("extracting links from website")
@@ -34,6 +37,7 @@ def get_links_manually(text: string):
     print("extraction done")
     return links
 
+
 def get_links_AI(text):
     response = client.responses.create(
         model="gpt-5-nano",
@@ -41,9 +45,11 @@ def get_links_AI(text):
     )
     return response.output_text.split(',')
 
+
 def load_document():
     global file
 
+    print("loading document")
     doc_name = ""
     for f in os.listdir():
         if f.endswith('.pdf'):
@@ -59,12 +65,12 @@ def load_document():
             print("document already loaded")
             return
 
-    print("loading document")
     file = client.files.create(
         file=open(doc_name, "rb"),
         purpose="assistants"
     )
-    print("document done")
+    print("loading document done")
+
 
 def condition(tag):
     if not tag.has_attr("class"):
@@ -73,6 +79,7 @@ def condition(tag):
         if class_name.startswith("ql-header-") or re.search("[pP]aragraph", class_name):
             return True
     return False
+
 
 def get_description(html_text):
     print(f'extracting description')
@@ -85,10 +92,23 @@ def get_description(html_text):
     print(f'extraction done, num letters: {len(text)}')
     return text
 
-def get_model_response(offer_text):
+
+def get_model_response_markdown(offer_text):
+    system_prompt = "As output only generate the cv formatted in Markdown"
+    return get_model_response(offer_text, system_prompt)
+
+
+def get_model_response_text(offer_text):
+    system_prompt = "As output only generate the cv text."
+    return get_model_response(offer_text, system_prompt)
+
+def get_model_response_html(offer_text):
+    system_prompt = "As output only generate the cv formatted in HTML."
+    return get_model_response(offer_text, system_prompt)
+
+def get_model_response(offer_text, system_prompt):
     prompt =f"Modify the cv to make it more suitable for the job offer:\n\n{offer_text}"
-    system_prompt = "As output only generate the cv formatted in Markdown, make it look professional and aestethically pleasing with two columns."
-    print(f"using OpenAI API with following prompt:\n{prompt}\nwaiting for response")
+    print(f"using OpenAI API with system prompt:\n{system_prompt}\nand user prompt:\n{prompt}\nwaiting for response")
     response = client.responses.create(
         model="gpt-5-nano",
         input=[
@@ -114,11 +134,33 @@ def get_model_response(offer_text):
     print("model responded")
     return response.output_text
 
+
+def generate_image(document_text):
+    print("requesting image generation")
+    response = client.responses.create(
+        model="gpt-5",
+        input=f"Generate an image of cv with following text:\n{document_text}",
+        tools=[{"type": "image_generation"}],
+    )
+    image_data = [
+        output.result
+        for output in response.output
+            if output.type == "image_generation_call"
+    ]
+    if image_data:
+        print("saving image to file")
+        image_base64 = image_data[0]
+        with open("generated_image.png", "wb") as f:
+            f.write(base64.b64decode(image_base64))
+    else:
+        print("image generation failed")
+
+
 def save_as_pdf(markdown_text):
     print("saving document as pdf")
     pdf = MarkdownPdf()
-    pdf.add_section(Section(response.output_text))
-    pdf.save("document.pdf")
+    pdf.add_section(Section(markdown_text))
+    pdf.save("from_markdown.pdf")
     print("document saved as pdf")
 
 
@@ -130,8 +172,16 @@ if __name__ == "__main__":
     links = get_links_manually(text)
     link_text = scraper(target_url + random.choice(links))
     description = get_description(link_text)
-    response = get_model_response(description)
-    save_as_pdf(response)
+
+    #response = get_model_response_markdown(description)
+    #save_as_pdf(response)
+
+    # response = get_model_response_text(description)
+    # generate_image(response)
+
+    response = get_model_response_html(description)
+    pdfkit.from_string(response, 'from_html.pdf')
+
 
 
 

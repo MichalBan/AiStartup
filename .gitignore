@@ -422,3 +422,6 @@ secrets.txt
 
 # Documents
 *.pdf
+
+# Images
+*.png
