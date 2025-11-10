@@ -1,3 +1,4 @@
+from pathlib import Path
 import random
 import string
 import requests
@@ -5,6 +6,7 @@ from bs4 import BeautifulSoup
 import re
 from openai import OpenAI
 import os
+from markdown_pdf import MarkdownPdf, Section
 
 client = OpenAI()
 
@@ -60,7 +62,7 @@ def load_document():
     print("loading document")
     file = client.files.create(
         file=open(doc_name, "rb"),
-        purpose="user_data"
+        purpose="assistants"
     )
     print("document done")
 
@@ -83,19 +85,17 @@ def get_description(html_text):
     print(f'extraction done, num letters: {len(text)}')
     return text
 
-
-if __name__ == "__main__":
-    target_url = 'https://justjoin.it'
-    text = scraper(target_url)
-    links = get_links_manually(text)
-    link_text = scraper(target_url + random.choice(links))
-    description = get_description(link_text)
-
-    load_document()
-    prompt =f"Using provided cv give me a quick answer if this candidate is suitable for the following job offer:\n\n{description}" 
+def get_model_response(offer_text):
+    prompt =f"Modify the cv to make it more suitable for the job offer:\n\n{offer_text}"
+    system_prompt = "As output only generate the cv formatted in Markdown, make it look professional and aestethically pleasing with two columns."
+    print(f"using OpenAI API with following prompt:\n{prompt}\nwaiting for response")
     response = client.responses.create(
         model="gpt-5-nano",
         input=[
+            {
+                "role": "system",
+                "content": system_prompt
+            },
             {
                 "role": "user",
                 "content": [
@@ -109,9 +109,31 @@ if __name__ == "__main__":
                     },
                 ]
             }
-        ]
+        ],
     )
-    print(response.output_text)
+    print("model responded")
+    return response.output_text
+
+def save_as_pdf(markdown_text):
+    print("saving document as pdf")
+    pdf = MarkdownPdf()
+    pdf.add_section(Section(response.output_text))
+    pdf.save("document.pdf")
+    print("document saved as pdf")
+
+
+if __name__ == "__main__":
+    target_url = 'https://justjoin.it'
+    load_document()
+
+    text = scraper(target_url)
+    links = get_links_manually(text)
+    link_text = scraper(target_url + random.choice(links))
+    description = get_description(link_text)
+    response = get_model_response(description)
+    save_as_pdf(response)
+
+
 
 
 
