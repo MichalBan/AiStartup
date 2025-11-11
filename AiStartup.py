@@ -9,6 +9,7 @@ import os
 from markdown_pdf import MarkdownPdf, Section
 import base64
 import pdfkit
+from datetime import datetime
 
 client = OpenAI()
 
@@ -173,7 +174,11 @@ if __name__ == "__main__":
     link_text = scraper(target_url + random.choice(links))
     description = get_description(link_text)
 
-    os.mkdir('output')
+    try:
+        print('creating directory "output"')
+        os.mkdir("output")
+    except:
+        print("directory already exists")
 
     #response = get_model_response_markdown(description)
     #save_as_pdf(response)
@@ -182,7 +187,11 @@ if __name__ == "__main__":
     # generate_image(response)
 
     response = get_model_response_html(description)
-    pdfkit.from_string(response, 'output/from_html.pdf')
+    now = datetime.now()
+    date_time = now.strftime("_%m-%d-%Y_%H-%M-%S")
+    path = "output/from_html" + date_time + ".pdf"
+    print(path)
+    pdfkit.from_string(response, path)
 
 
 
