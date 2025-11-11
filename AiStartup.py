@@ -150,7 +150,7 @@ def generate_image(document_text):
     if image_data:
         print("saving image to file")
         image_base64 = image_data[0]
-        with open("generated_image.png", "wb") as f:
+        with open("output/generated_image.png", "wb") as f:
             f.write(base64.b64decode(image_base64))
     else:
         print("image generation failed")
@@ -160,7 +160,7 @@ def save_as_pdf(markdown_text):
     print("saving document as pdf")
     pdf = MarkdownPdf()
     pdf.add_section(Section(markdown_text))
-    pdf.save("from_markdown.pdf")
+    pdf.save("output/from_markdown.pdf")
     print("document saved as pdf")
 
 
@@ -173,6 +173,8 @@ if __name__ == "__main__":
     link_text = scraper(target_url + random.choice(links))
     description = get_description(link_text)
 
+    os.mkdir('output')
+
     #response = get_model_response_markdown(description)
     #save_as_pdf(response)
 
@@ -180,7 +182,7 @@ if __name__ == "__main__":
     # generate_image(response)
 
     response = get_model_response_html(description)
-    pdfkit.from_string(response, 'from_html.pdf')
+    pdfkit.from_string(response, 'output/from_html.pdf')
 
 
 

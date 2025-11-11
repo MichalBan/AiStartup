@@ -425,3 +425,6 @@ secrets.txt
 
 # Images
 *.png
+
+# Output
+output
