@@ -156,14 +156,19 @@ def generate_image(document_text):
     else:
         print("image generation failed")
 
-
-def save_as_pdf(markdown_text):
+def save_markdown_as_pdf(markdown_text):
     print("saving document as pdf")
     pdf = MarkdownPdf()
     pdf.add_section(Section(markdown_text))
     pdf.save("output/from_markdown.pdf")
     print("document saved as pdf")
 
+def save_html_as_pdf(html_text):
+    now = datetime.now()
+    date_time = now.strftime("_%m-%d-%Y_%H-%M-%S")
+    path = "output/from_html" + date_time + ".pdf"
+    pdfkit.from_string(html_text, path)
+    print(f"saving document as {path}")
 
 if __name__ == "__main__":
     target_url = 'https://justjoin.it'
@@ -178,7 +183,7 @@ if __name__ == "__main__":
         print('creating directory "output"')
         os.mkdir("output")
     except:
-        print("directory already exists")
+        print('directory "output" already exists')
 
     #response = get_model_response_markdown(description)
     #save_as_pdf(response)
@@ -187,12 +192,7 @@ if __name__ == "__main__":
     # generate_image(response)
 
     response = get_model_response_html(description)
-    now = datetime.now()
-    date_time = now.strftime("_%m-%d-%Y_%H-%M-%S")
-    path = "output/from_html" + date_time + ".pdf"
-    print(path)
-    pdfkit.from_string(response, path)
-
+    save_html_as_pdf(response)
 
 
 
