@@ -6,10 +6,9 @@ from bs4 import BeautifulSoup
 import re
 from openai import OpenAI
 import os
-from markdown_pdf import MarkdownPdf, Section
-import base64
-import pdfkit
 from datetime import datetime
+from OutputSaving import create_shortcut, save_html_as_pdf
+import urllib.parse
 
 client = OpenAI()
 
@@ -37,15 +36,6 @@ def get_links_manually(text: string):
         link_start = text.find('href="/job-offer/', link_end)
     print("extraction done")
     return links
-
-
-def get_links_AI(text):
-    response = client.responses.create(
-        model="gpt-5-nano",
-        input="Create a comma separated list of links to job offers from the following website:\n" + text
-    )
-    return response.output_text.split(',')
-
 
 def load_document():
     global file
@@ -94,18 +84,20 @@ def get_description(html_text):
     return text
 
 
-def get_model_response_markdown(offer_text):
-    system_prompt = "As output only generate the cv formatted in Markdown"
-    return get_model_response(offer_text, system_prompt)
+# def get_model_response_markdown(offer_text):
+#     system_prompt = "As output only generate the cv formatted in Markdown"
+#     return get_model_response(offer_text, system_prompt)
 
 
-def get_model_response_text(offer_text):
-    system_prompt = "As output only generate the cv text."
-    return get_model_response(offer_text, system_prompt)
+# def get_model_response_text(offer_text):
+#     system_prompt = "As output only generate the cv text."
+#     return get_model_response(offer_text, system_prompt)
+
 
 def get_model_response_html(offer_text):
     system_prompt = "As output only generate the cv formatted in HTML."
     return get_model_response(offer_text, system_prompt)
+
 
 def get_model_response(offer_text, system_prompt):
     prompt =f"Modify the cv to make it more suitable for the job offer:\n\n{offer_text}"
@@ -135,40 +127,13 @@ def get_model_response(offer_text, system_prompt):
     print("model responded")
     return response.output_text
 
+def try_make_dir(path):
+    try:
+        print(f'creating directory {path}')
+        os.mkdir(path)
+    except:
+        print(f'directory {path} already exists')
 
-def generate_image(document_text):
-    print("requesting image generation")
-    response = client.responses.create(
-        model="gpt-5",
-        input=f"Generate an image of cv with following text:\n{document_text}",
-        tools=[{"type": "image_generation"}],
-    )
-    image_data = [
-        output.result
-        for output in response.output
-            if output.type == "image_generation_call"
-    ]
-    if image_data:
-        print("saving image to file")
-        image_base64 = image_data[0]
-        with open("output/generated_image.png", "wb") as f:
-            f.write(base64.b64decode(image_base64))
-    else:
-        print("image generation failed")
-
-def save_markdown_as_pdf(markdown_text):
-    print("saving document as pdf")
-    pdf = MarkdownPdf()
-    pdf.add_section(Section(markdown_text))
-    pdf.save("output/from_markdown.pdf")
-    print("document saved as pdf")
-
-def save_html_as_pdf(html_text):
-    now = datetime.now()
-    date_time = now.strftime("_%m-%d-%Y_%H-%M-%S")
-    path = "output/from_html" + date_time + ".pdf"
-    pdfkit.from_string(html_text, path)
-    print(f"saving document as {path}")
 
 if __name__ == "__main__":
     target_url = 'https://justjoin.it'
@@ -176,29 +141,20 @@ if __name__ == "__main__":
 
     text = scraper(target_url)
     links = get_links_manually(text)
-    link_text = scraper(target_url + random.choice(links))
-    description = get_description(link_text)
 
-    try:
-        print('creating directory "output"')
-        os.mkdir("output")
-    except:
-        print('directory "output" already exists')
+    path = "output"
+    try_make_dir(path)
+    path = path + "/" + datetime.now().strftime("_%m-%d-%Y_%H-%M-%S")
+    try_make_dir(path)
 
-    #response = get_model_response_markdown(description)
-    #save_as_pdf(response)
+    for i in range(2):
+        offer_url = target_url + links[1]
+        link_text = scraper(offer_url)
+        description = get_description(link_text)
+        response = get_model_response_html(description)
 
-    # response = get_model_response_text(description)
-    # generate_image(response)
-
-    response = get_model_response_html(description)
-    save_html_as_pdf(response)
-
-
-
-
-
-
-   
-       
+        loop_path = path + "/" + str(i+1)
+        try_make_dir(loop_path)
+        save_html_as_pdf(loop_path + "/CV.pdf", response)
+        create_shortcut(loop_path + "/shortcut.url", offer_url)
 
